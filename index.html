@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Performance FO - Mitratel (v10 with Stop Clock Toggle)</title>
+    <title>Dashboard Performance FO - Mitratel (v12 with Granular Trend Span Toggle)</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Chart.js -->
@@ -330,7 +330,7 @@
     </section>
 
     <!-- SECTION 4: SLA COMPLIANCE, SPAN REPETITIVE & TOP RCA PARETO -->
-    <section class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <section class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
         <!-- SLA Compliance Donut -->
         <div class="lg:col-span-3 bg-white p-4 rounded-xl shadow-md border border-gray-100 flex flex-col justify-between">
             <div class="border-b pb-2 mb-2">
@@ -427,6 +427,133 @@
         </div>
     </section>
 
+    <!-- SECTION 6: TREND SPAN REPETITIVE & TELCO-GRADE INTERACTIVE SUMMARY CONTAINER WITH GRANULAR TOGGLE -->
+    <section class="mt-6 mb-6">
+        <div class="bg-white p-4 rounded-xl shadow-md border border-gray-100">
+            <div class="flex flex-wrap justify-between items-center mb-3 border-b pb-2 gap-2">
+                <div>
+                    <h2 class="text-md font-bold text-gray-700">Trend Span Repetitive &amp; Health Category</h2>
+                    <p class="text-[11px] text-gray-500">Pilih tampilan waktu (Daily/Weekly/Monthly) dan klik kartu summary untuk filter spasial</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <!-- Toggle Granularity Switch untuk Trend Repetitive Span -->
+                    <div class="inline-flex rounded-lg p-0.5 bg-slate-100 border border-slate-200 text-xs font-semibold">
+                        <button id="btnTrendSpanDaily" onclick="setTrendSpanGranularity('daily')" class="px-2.5 py-1 rounded-md bg-sky-600 text-white shadow-sm transition">Daily</button>
+                        <button id="btnTrendSpanWeekly" onclick="setTrendSpanGranularity('weekly')" class="px-2.5 py-1 rounded-md text-gray-600 hover:text-sky-600 transition">Weekly</button>
+                        <button id="btnTrendSpanMonthly" onclick="setTrendSpanGranularity('monthly')" class="px-2.5 py-1 rounded-md text-gray-600 hover:text-sky-600 transition">Monthly</button>
+                    </div>
+
+                    <span id="trendSpanCounter" class="text-[10px] bg-indigo-100 text-indigo-800 px-2.5 py-1 rounded font-bold">0 Span Pair</span>
+                    <button onclick="exportTrendSpanExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] xl:text-[11px] px-3 py-1 rounded-lg font-bold shadow-sm flex items-center gap-1 transition">
+                        <i class="fa-solid fa-file-excel"></i> Download Excel
+                    </button>
+                </div>
+            </div>
+
+            <!-- Grid Layout: Tabel & Container Summary Kejadian Telco -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                
+                <!-- Main Table (8 Cols) -->
+                <div class="lg:col-span-8 overflow-x-auto max-h-96 border rounded-lg border-gray-200">
+                    <table id="trendSpanTable" class="w-full text-xs text-left text-gray-600 border-collapse">
+                        <thead id="trendSpanTableHead" class="text-[11px] text-gray-700 uppercase bg-slate-100 sticky top-0 z-10 shadow-sm">
+                            <!-- Dynamic Period Headers Populated via JS -->
+                        </thead>
+                        <tbody id="trendSpanTableBody">
+                            <tr>
+                                <td colspan="10" class="text-center py-4 text-gray-400">Silakan upload data Excel...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- TELCO-GRADE INTERACTIVE SUMMARY CONTAINER (4 Cols) -->
+                <div class="lg:col-span-4 bg-slate-50 border border-slate-200 p-3.5 rounded-lg flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-center border-b pb-2 mb-3 border-slate-200">
+                            <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wide flex items-center gap-1.5">
+                                <i class="fa-solid fa-shield-halved text-indigo-600"></i> Level Kerawanan Span
+                            </h3>
+                            <button onclick="filterSpanByFreq('ALL')" class="text-[10px] bg-sky-100 hover:bg-sky-200 text-sky-800 font-bold px-2 py-0.5 rounded transition">
+                                Reset Filter
+                            </button>
+                        </div>
+
+                        <!-- Summary Cards List (Interactive Filters) -->
+                        <div class="space-y-2">
+                            <!-- Kategori 1: Chronic / Severe (>3x) -->
+                            <div id="cardFilter_CRITICAL" onclick="filterSpanByFreq('CRITICAL')" class="cursor-pointer bg-white border border-red-200 hover:bg-red-50/50 p-2.5 rounded-lg shadow-2xs flex justify-between items-center transition border-l-4 border-l-red-600">
+                                <div>
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="w-2 h-2 rounded-full bg-red-600 animate-pulse"></span>
+                                        <span class="text-xs font-bold text-slate-800">Chronic Link (> 3x)</span>
+                                    </div>
+                                    <p class="text-[10px] text-slate-400 pl-3.5">Membutuhkan Hardening Network</p>
+                                </div>
+                                <div class="text-right">
+                                    <span id="summaryMore3x" class="text-sm font-black text-red-600">0</span>
+                                    <span class="text-[10px] text-slate-400 ml-0.5">span</span>
+                                </div>
+                            </div>
+
+                            <!-- Kategori 2: Repetitive / High (3x) -->
+                            <div id="cardFilter_HIGH" onclick="filterSpanByFreq('HIGH')" class="cursor-pointer bg-white border border-orange-200 hover:bg-orange-50/50 p-2.5 rounded-lg shadow-2xs flex justify-between items-center transition border-l-4 border-l-orange-500">
+                                <div>
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="w-2 h-2 rounded-full bg-orange-500"></span>
+                                        <span class="text-xs font-bold text-slate-800">Span Repetitive (3x)</span>
+                                    </div>
+                                    <p class="text-[10px] text-slate-400 pl-3.5">Fokus PM &amp; OTDR Audit</p>
+                                </div>
+                                <div class="text-right">
+                                    <span id="summary3x" class="text-sm font-black text-orange-600">0</span>
+                                    <span class="text-[10px] text-slate-400 ml-0.5">span</span>
+                                </div>
+                            </div>
+
+                            <!-- Kategori 3: Warning / Potential (2x) -->
+                            <div id="cardFilter_MEDIUM" onclick="filterSpanByFreq('MEDIUM')" class="cursor-pointer bg-white border border-amber-200 hover:bg-amber-50/50 p-2.5 rounded-lg shadow-2xs flex justify-between items-center transition border-l-4 border-l-amber-500">
+                                <div>
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                                        <span class="text-xs font-bold text-slate-800">Potensial Repetitive (2x)</span>
+                                    </div>
+                                    <p class="text-[10px] text-slate-400 pl-3.5">Perlu Monitoring &amp; Patroli Jalur</p>
+                                </div>
+                                <div class="text-right">
+                                    <span id="summary2x" class="text-sm font-black text-amber-600">0</span>
+                                    <span class="text-[10px] text-slate-400 ml-0.5">span</span>
+                                </div>
+                            </div>
+
+                            <!-- Kategori 4: Single Incident (1x) -->
+                            <div id="cardFilter_LOW" onclick="filterSpanByFreq('LOW')" class="cursor-pointer bg-white border border-emerald-200 hover:bg-emerald-50/50 p-2.5 rounded-lg shadow-2xs flex justify-between items-center transition border-l-4 border-l-emerald-500">
+                                <div>
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                        <span class="text-xs font-bold text-slate-800">Single Incident (1x)</span>
+                                    </div>
+                                    <p class="text-[10px] text-slate-400 pl-3.5">Gangguan Tunggal Standard</p>
+                                </div>
+                                <div class="text-right">
+                                    <span id="summary1x" class="text-sm font-black text-emerald-600">0</span>
+                                    <span class="text-[10px] text-slate-400 ml-0.5">span</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Total Bottom Info -->
+                    <div class="mt-3 pt-2 border-t border-slate-200 flex justify-between items-center text-[11px] text-slate-500 font-medium">
+                        <span>Total Span Terdeteksi:</span>
+                        <span id="summaryTotalSpan" class="font-bold text-indigo-700">0 Span</span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
     <!-- JavaScript Application Logic -->
     <script>
         // Register ChartDataLabels plugin globally
@@ -445,11 +572,19 @@
         let chartInstances = {};
         let timeGranularity = 'daily'; 
         let mnoTrendGranularity = 'daily'; 
+        let trendSpanGranularity = 'daily'; // New Variable for Trend Span Repetitive
         let selectedMnoTrend = 'ALL'; 
         let deduplicateTiket = true;   
         let applyStopClock = true;     
         let filterSoW = true;          
         let filterTicketInfo = true;   
+
+        // Cache Data Span Repetitive
+        let globalTrendSpanPairs = [];
+        let activeFreqFilter = 'ALL';
+
+        // Global Data Cache for Trend Span Repetitive Export
+        let trendSpanExportData = [];
 
         let filterOptions = { DateOpen: [], Area: [], Regional: [], Status: [], MNO: [], SoW: ['SoW', 'Non-SoW'], TicketInfo: ['MMP', 'Non-MMP'] };
         let selectedFilters = { DateOpen: [], Area: [], Regional: [], Status: [], MNO: [], SoW: ['SoW'], TicketInfo: ['MMP'] };
@@ -516,9 +651,7 @@
                     ...chartOptions,
                     plugins: {
                         legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } },
-                        datalabels: {
-                            formatter: (val) => val > 0 ? val : ''
-                        }
+                        datalabels: { formatter: (val) => val > 0 ? val : '' }
                     },
                     scales: {
                         x: { grid: { display: false }, ticks: { font: { size: 10 } } },
@@ -552,9 +685,7 @@
                 return '#000000';
             }
 
-            function getMNOBorderWidth(context) {
-                return 2;
-            }
+            function getMNOBorderWidth(context) { return 2; }
 
             // MNO Stacked Trend Chart
             chartInstances.mnoTrend = new Chart(document.getElementById('mnoTrendChart'), {
@@ -583,9 +714,7 @@
                     barPercentage: 1.0,
                     plugins: {
                         legend: { position: 'top', labels: { boxWidth: 10, font: { size: 10 } } },
-                        datalabels: {
-                            formatter: (val) => val > 0 ? val : ''
-                        }
+                        datalabels: { formatter: (val) => val > 0 ? val : '' }
                     },
                     scales: {
                         x: { stacked: false, grid: { display: false }, ticks: { font: { size: 10 } } },
@@ -769,6 +898,185 @@
             });
         }
 
+        // Action Plan Automation Logic
+        function generateActionPlan(rcaList) {
+            if (!rcaList || rcaList.length === 0) return "Investigasi Lapangan & OTDR Audit Jalur";
+
+            const allRcaStr = rcaList.join(" ").toLowerCase();
+
+            if (allRcaStr.includes('cut') || allRcaStr.includes('putus') || allRcaStr.includes('galian') || allRcaStr.includes('pu') || allRcaStr.includes('third party') || allRcaStr.includes('pohon')) {
+                return "Patroli Jalur / Koordinasi Dinas PU / Pemasangan Pipa GIP / Relokasi Jalur";
+            }
+            if (allRcaStr.includes('bend') || allRcaStr.includes('redaman') || allRcaStr.includes('attenuation') || allRcaStr.includes('splice') || allRcaStr.includes('slack')) {
+                return "Re-splicing Core / Merapikan Slack / OTDR Tracing Point / Cleaning Connector";
+            }
+            if (allRcaStr.includes('patchcord') || allRcaStr.includes('pigtail') || allRcaStr.includes('konektor') || allRcaStr.includes('connector')) {
+                return "Replace Armored Patchcord / Cleaning OTB Port / Re-labeling Core";
+            }
+            if (allRcaStr.includes('vandal') || allRcaStr.includes('sabotase') || allRcaStr.includes('curi') || allRcaStr.includes('theft')) {
+                return "Pemasangan Tagging Kabel Non-Tembaga / Laporan Aparat Setempat";
+            }
+            if (allRcaStr.includes('sfp') || allRcaStr.includes('transceiver') || allRcaStr.includes('otb') || allRcaStr.includes('hardware') || allRcaStr.includes('degraded')) {
+                return "Replace SFP Transceiver / Measuring Optical Power Tx-Rx / Maintenance OTB";
+            }
+
+            return "Investigasi Lapangan & OTDR Audit Jalur";
+        }
+
+        function setTrendSpanGranularity(granularity) {
+            trendSpanGranularity = granularity;
+            ['daily', 'weekly', 'monthly'].forEach(g => {
+                const btn = document.getElementById(`btnTrendSpan${g.charAt(0).toUpperCase() + g.slice(1)}`);
+                if (btn) {
+                    btn.className = (g === granularity)
+                        ? "px-2.5 py-1 rounded-md bg-sky-600 text-white shadow-sm transition"
+                        : "px-2.5 py-1 rounded-md text-gray-600 hover:text-sky-600 transition";
+                }
+            });
+            renderTrendSpanTable();
+        }
+
+        function filterSpanByFreq(category) {
+            activeFreqFilter = category;
+            
+            ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].forEach(cat => {
+                const card = document.getElementById(`cardFilter_${cat}`);
+                if (card) {
+                    if (cat === category) {
+                        card.classList.add('ring-2', 'ring-indigo-500', 'bg-indigo-50/30');
+                    } else {
+                        card.classList.remove('ring-2', 'ring-indigo-500', 'bg-indigo-50/30');
+                    }
+                }
+            });
+
+            renderTrendSpanTable();
+        }
+
+        function renderTrendSpanTable() {
+            const trendSpanTableHead = document.getElementById('trendSpanTableHead');
+            const trendSpanTableBody = document.getElementById('trendSpanTableBody');
+
+            let displayPairs = globalTrendSpanPairs;
+
+            if (activeFreqFilter === 'CRITICAL') {
+                displayPairs = globalTrendSpanPairs.filter(([_, info]) => info.count > 3);
+            } else if (activeFreqFilter === 'HIGH') {
+                displayPairs = globalTrendSpanPairs.filter(([_, info]) => info.count === 3);
+            } else if (activeFreqFilter === 'MEDIUM') {
+                displayPairs = globalTrendSpanPairs.filter(([_, info]) => info.count === 2);
+            } else if (activeFreqFilter === 'LOW') {
+                displayPairs = globalTrendSpanPairs.filter(([_, info]) => info.count === 1);
+            }
+
+            trendSpanExportData = [];
+
+            if (displayPairs.length === 0) {
+                trendSpanTableHead.innerHTML = '';
+                trendSpanTableBody.innerHTML = '<tr><td colspan="10" class="text-center py-6 text-gray-400 font-semibold">Tidak ada data span untuk kategori filter ini.</td></tr>';
+                return;
+            }
+
+            // Agregasi periode berdasarkan trendSpanGranularity
+            const periodMap = {};
+            displayPairs.forEach(([_, info]) => {
+                info.incidents.forEach(inc => {
+                    const gInfo = getGroupKeyInfo(inc.openTime || inc.dateStr, trendSpanGranularity);
+                    if (!periodMap[gInfo.sortKey]) {
+                        periodMap[gInfo.sortKey] = gInfo.label;
+                    }
+                });
+            });
+
+            const sortedPeriodKeys = Object.keys(periodMap).sort();
+
+            let headHTML = `
+                <tr>
+                    <th class="px-2.5 py-2 text-center border-b border-r bg-slate-200/80 w-10">No</th>
+                    <th class="px-3 py-2 border-b border-r bg-slate-200/80 min-w-[200px]">Span Pair (Site Down &lt;&gt; Site Detector)</th>
+                    <th class="px-3 py-2 border-b border-r bg-slate-200/80 min-w-[120px]">Branch</th>
+                    <th class="px-2.5 py-2 text-center border-b border-r bg-slate-200/80 w-20">Total TT</th>
+            `;
+
+            sortedPeriodKeys.forEach(pKey => {
+                const label = periodMap[pKey];
+                headHTML += `<th class="px-2.5 py-2 text-center border-b border-r bg-slate-200/80 min-w-[110px]">${label}</th>`;
+            });
+
+            headHTML += `<th class="px-3 py-2 border-b bg-slate-200/80 min-w-[250px]">Action Plan</th></tr>`;
+            trendSpanTableHead.innerHTML = headHTML;
+
+            trendSpanTableBody.innerHTML = '';
+            displayPairs.forEach(([pairName, info], idx) => {
+                // Grouping RCA per span pair berdasarkan periode
+                const spanPeriodGroup = {};
+                info.incidents.forEach(inc => {
+                    const gInfo = getGroupKeyInfo(inc.openTime || inc.dateStr, trendSpanGranularity);
+                    if (!spanPeriodGroup[gInfo.sortKey]) {
+                        spanPeriodGroup[gInfo.sortKey] = [];
+                    }
+                    spanPeriodGroup[gInfo.sortKey].push(inc.rca);
+                });
+
+                const tr = document.createElement('tr');
+                tr.className = idx % 2 === 0 ? 'bg-white border-b hover:bg-slate-50 transition' : 'bg-slate-50/70 border-b hover:bg-slate-50 transition';
+
+                let rowHTML = `
+                    <td class="px-2.5 py-2 text-center font-bold text-gray-500 border-r text-[11px]">${idx + 1}</td>
+                    <td class="px-3 py-2 font-mono text-[11px] text-sky-800 font-semibold border-r">${pairName}</td>
+                    <td class="px-3 py-2 font-bold text-gray-700 border-r text-[11px]">${info.branch}</td>
+                    <td class="px-2.5 py-2 text-center font-extrabold ${info.count > 1 ? 'text-red-600 bg-red-50/80' : 'text-gray-700'} border-r text-[11px]">${info.count}</td>
+                `;
+
+                const exportRowObj = {
+                    'No': idx + 1,
+                    'Span Pair (Site Down <> Site Detector)': pairName,
+                    'Branch': info.branch,
+                    'Total TT': info.count
+                };
+
+                const spanAllRcas = [];
+
+                sortedPeriodKeys.forEach(pKey => {
+                    const pLabel = periodMap[pKey];
+                    const rcaList = spanPeriodGroup[pKey];
+                    if (rcaList && rcaList.length > 0) {
+                        spanAllRcas.push(...rcaList);
+                        const rcaCellText = rcaList.join(' | ');
+                        exportRowObj[pLabel] = rcaCellText;
+
+                        rowHTML += `
+                            <td class="px-2 py-1.5 border-r text-center text-[10px] bg-amber-50/60 font-medium">
+                                <span class="inline-block bg-amber-100 text-amber-900 border border-amber-300 rounded px-1.5 py-0.5 leading-tight shadow-2xs" title="${rcaCellText}">
+                                    ${rcaCellText.length > 20 ? rcaCellText.substring(0, 18) + '...' : rcaCellText}
+                                </span>
+                            </td>
+                        `;
+                    } else {
+                        exportRowObj[pLabel] = '';
+                        rowHTML += `<td class="px-2 py-1.5 border-r text-center text-gray-300">-</td>`;
+                    }
+                });
+
+                // Generate Automatic Action Plan
+                const recommendedActionPlan = generateActionPlan(spanAllRcas);
+                exportRowObj['Action Plan'] = recommendedActionPlan;
+
+                rowHTML += `
+                    <td class="px-3 py-2 text-slate-800 font-medium text-[11px] border-l bg-slate-50/50">
+                        <span class="inline-flex items-center gap-1.5 text-emerald-700 font-semibold">
+                            <i class="fa-solid fa-circle-check text-[10px]"></i> ${recommendedActionPlan}
+                        </span>
+                    </td>
+                `;
+
+                tr.innerHTML = rowHTML;
+                trendSpanTableBody.appendChild(tr);
+
+                trendSpanExportData.push(exportRowObj);
+            });
+        }
+
         function getCleanDateOpen(row) {
             const dt = getStartOpenTime(row);
             if (!dt) return '(Kosong)';
@@ -835,7 +1143,6 @@
             return '';
         }
 
-        // Helper Ekstraksi Kolom MMP/Vendor secara Fleksibel
         function getMMPValue(row) {
             const possibleMMPKeys = ['MMP', 'Nama MMP', 'MMP/Non-MMP', 'MMP / Non MMP', 'Vendor', 'Vendor Name', 'Ticket Info', 'INFO TICKET'];
             for (let key of possibleMMPKeys) {
@@ -846,7 +1153,6 @@
             return '';
         }
 
-        // Non-SoW Detection Logic based on Segment Column
         const NON_SOW_SEGMENT_PATTERNS = [
             'hasil pengukuran disisi akses normal',
             'issue problem fo flp',
@@ -863,7 +1169,6 @@
             return NON_SOW_SEGMENT_PATTERNS.some(pattern => lowerSeg.includes(pattern));
         }
 
-        // MMP vs Non-MMP Detection Logic
         const NON_MMP_PATTERNS = [
             'mitratel',
             'mitratel - tis',
@@ -875,14 +1180,6 @@
             if (!mmpVal) return false;
             const lowerMMP = String(mmpVal).trim().toLowerCase();
             return NON_MMP_PATTERNS.some(pattern => lowerMMP.includes(pattern));
-        }
-
-        function getMMPStatus(row) {
-            const mmpVal = getMMPValue(row);
-            if (!mmpVal || mmpVal === '' || mmpVal === '-' || mmpVal === '(Kosong)' || String(mmpVal).toLowerCase() === 'nan') {
-                return '(Kosong)';
-            }
-            return isNonMMP(row) ? 'Non-MMP' : 'MMP';
         }
 
         function handleDuplicateToggle(isChecked) {
@@ -1187,7 +1484,7 @@
             selectedFilters.Regional = [...filterOptions.Regional];
             selectedFilters.Status = [...filterOptions.Status];
             selectedFilters.MNO = [...filterOptions.MNO];
-            
+
             if (!selectedFilters.SoW || !selectedFilters.SoW.length) {
                 selectedFilters.SoW = ['SoW'];
             }
@@ -1329,7 +1626,7 @@
 
         function getGroupKeyInfo(openTimeStr, granularity) {
             if (!openTimeStr) return { sortKey: '9999-99-99', label: 'Unknown' };
-            const dt = new Date(openTimeStr);
+            const dt = (openTimeStr instanceof Date) ? openTimeStr : new Date(openTimeStr);
             if (isNaN(dt.getTime())) return { sortKey: '9999-99-99', label: 'Unknown' };
 
             const year = dt.getFullYear();
@@ -1381,6 +1678,20 @@
                 document.getElementById('kpiCancelledTT').innerText = "0";
                 document.getElementById('kpiAvgMTTR').innerHTML = `0.00 <span class="text-sm font-normal">Jam</span>`;
                 document.getElementById('kpiSLA').innerText = `0.0%`;
+
+                document.getElementById('trendSpanTableHead').innerHTML = '';
+                document.getElementById('trendSpanTableBody').innerHTML = '<tr><td colspan="10" class="text-center py-4 text-gray-400">Tidak ada data.</td></tr>';
+                document.getElementById('trendSpanCounter').innerText = "0 Span Pair";
+
+                // Reset Summary Cards
+                document.getElementById('summary1x').innerText = '0';
+                document.getElementById('summary2x').innerText = '0';
+                document.getElementById('summary3x').innerText = '0';
+                document.getElementById('summaryMore3x').innerText = '0';
+                document.getElementById('summaryTotalSpan').innerText = '0 Span';
+
+                globalTrendSpanPairs = [];
+                trendSpanExportData = [];
                 return;
             }
 
@@ -1396,6 +1707,8 @@
             const branchData = {};
             const trendData = {};
             const spanPairCounts = {};
+
+            const trendSpanPairs = {};
 
             markersLayer.clearLayers();
             let markerCount = 0;
@@ -1419,6 +1732,9 @@
 
                 const siteDownID = String(row['Site Down ID'] || '').trim();
                 const siteDetectorID = String(row['Site Detector ID'] || '').trim();
+                const branchVal = getCleanBranch(row);
+                const openDateStr = getCleanDateOpen(row);
+                const startOpenDt = getStartOpenTime(row);
 
                 if (siteDownID && siteDetectorID && siteDownID !== 'NaN' && siteDetectorID !== 'NaN') {
                     const normalizedPair = siteDownID <= siteDetectorID
@@ -1432,6 +1748,26 @@
 
                     if (parsedRca) {
                         spanPairCounts[normalizedPair].rcaList[parsedRca] = (spanPairCounts[normalizedPair].rcaList[parsedRca] || 0) + 1;
+                    }
+
+                    if (!trendSpanPairs[normalizedPair]) {
+                        trendSpanPairs[normalizedPair] = {
+                            branch: branchVal,
+                            count: 0,
+                            incidents: []
+                        };
+                    }
+                    trendSpanPairs[normalizedPair].count++;
+                    if (branchVal && branchVal !== 'Unassigned') {
+                        trendSpanPairs[normalizedPair].branch = branchVal;
+                    }
+
+                    if (openDateStr && openDateStr !== '(Kosong)') {
+                        trendSpanPairs[normalizedPair].incidents.push({
+                            openTime: startOpenDt,
+                            dateStr: openDateStr,
+                            rca: parsedRca || 'Unspecified RCA'
+                        });
                     }
                 }
 
@@ -1450,7 +1786,6 @@
                     }
                 }
 
-                const branchVal = getCleanBranch(row);
                 if (!branchData[branchVal]) branchData[branchVal] = { count: 0, inSLA: 0, outSLA: 0, sumTTR: 0, validTTRCount: 0 };
                 branchData[branchVal].count++;
                 if (!isNaN(ttrVal)) {
@@ -1497,7 +1832,7 @@
                 }
             });
 
-            // Render Span Table
+            // Render Section 4 Span Table
             const sortedSpans = Object.entries(spanPairCounts).sort((a,b) => b[1].count - a[1].count);
             const spanTableBody = document.getElementById('spanTableBody');
             spanTableBody.innerHTML = '';
@@ -1531,6 +1866,37 @@
                     spanTableBody.appendChild(tr);
                 });
             }
+
+            // CACHE DATA UNTUK INTERACTIVE FILTER & TABLE RENDERING
+            globalTrendSpanPairs = Object.entries(trendSpanPairs).sort((a,b) => b[1].count - a[1].count);
+
+            const trendSpanCounter = document.getElementById('trendSpanCounter');
+            if (trendSpanCounter) {
+                trendSpanCounter.innerText = `${globalTrendSpanPairs.length} Span Pair`;
+            }
+
+            // Hitung Frekuensi
+            let freq1x = 0;
+            let freq2x = 0;
+            let freq3x = 0;
+            let freqMore3x = 0;
+
+            globalTrendSpanPairs.forEach(([_, info]) => {
+                if (info.count === 1) freq1x++;
+                else if (info.count === 2) freq2x++;
+                else if (info.count === 3) freq3x++;
+                else if (info.count > 3) freqMore3x++;
+            });
+
+            // Update Angka di Kartu Summary
+            document.getElementById('summary1x').innerText = freq1x.toLocaleString('id-ID');
+            document.getElementById('summary2x').innerText = freq2x.toLocaleString('id-ID');
+            document.getElementById('summary3x').innerText = freq3x.toLocaleString('id-ID');
+            document.getElementById('summaryMore3x').innerText = freqMore3x.toLocaleString('id-ID');
+            document.getElementById('summaryTotalSpan').innerText = `${globalTrendSpanPairs.length} Span`;
+
+            // Render Tabel Pertama Kali
+            renderTrendSpanTable();
 
             // Update KPI
             const avgTTR = validTTRCount > 0 ? (sumTTR / validTTRCount) : 0;
@@ -1679,6 +2045,28 @@
                         branchTableBody.appendChild(tr);
                     });
                 }
+            }
+        }
+
+        // Export Function for Trend Span Repetitive Data
+        function exportTrendSpanExcel() {
+            if (!trendSpanExportData || trendSpanExportData.length === 0) {
+                alert("Tidak ada data Trend Span Repetitive untuk di-download.");
+                return;
+            }
+
+            try {
+                const worksheet = XLSX.utils.json_to_sheet(trendSpanExportData);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "Trend Span Repetitive");
+
+                const max_width = trendSpanExportData.reduce((w, r) => Math.max(w, Object.keys(r).length), 10);
+                worksheet['!cols'] = Array(max_width).fill({ wch: 22 });
+
+                XLSX.writeFile(workbook, `Trend_Span_Repetitive_${new Date().toISOString().slice(0, 10)}.xlsx`);
+            } catch (err) {
+                alert("Gagal mengunduh file Excel!");
+                console.error(err);
             }
         }
 
