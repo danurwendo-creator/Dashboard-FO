@@ -1,4 +1,4 @@
-    <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
@@ -21,7 +21,7 @@
 <body class="bg-slate-100 font-sans p-4">
 
     <!-- Header Section -->
-    <header class="bg-gradient-to-r from-red-800 to-red-600 text-white rounded-xl p-4 mb-4 shadow-md flex justify-between items-center">
+  <header class="bg-gradient-to-r from-red-800 to-red-600 text-white rounded-xl p-4 mb-4 shadow-md flex justify-between items-center">
         <div>
             <h1 class="text-2xl font-bold tracking-wide">Dashboard Performance FO Mitratel</h1>
             <p class="text-xs text-red-200">Mitratel FO Trouble Ticket Data Analytics</p>
@@ -33,7 +33,7 @@
                      class="h-9 w-auto object-contain">
             </div>
         </div>
-    </header>
+    </header>>
 
     <!-- Filter Bar -->
     <section class="bg-white p-2.5 rounded-xl shadow-sm border border-gray-200 mb-4 relative z-[9999] overflow-visible">
@@ -42,7 +42,7 @@
             <!-- Group 1: Filter Dropdowns -->
             <div class="flex flex-nowrap items-center gap-1.5 overflow-visible">
 
-                <!-- Tgl Open Dropdown -->
+                <!-- Tgl Open - Hari Dropdown -->
                 <div class="relative inline-block text-left z-50">
                     <button type="button" onclick="toggleDropdown('dropdownDateOpen')" class="bg-sky-500 hover:bg-sky-600 text-white text-[10px] xl:text-[11px] px-2 py-1 rounded-lg font-medium shadow-sm flex items-center gap-1 transition whitespace-nowrap">
                         <span id="labelDateOpen">Tgl Open: Semua (0)</span>
@@ -56,6 +56,40 @@
                             <button onclick="closeDropdowns()" class="text-gray-400 hover:text-gray-600 text-xs"><i class="fa-solid fa-xmark"></i></button>
                         </div>
                         <div id="optionsDateOpen" class="max-h-48 overflow-y-auto flex flex-col gap-1"></div>
+                    </div>
+                </div>
+
+                              <!-- Bulan Dropdown -->
+                <div class="relative inline-block text-left z-50">
+                    <button type="button" onclick="toggleDropdown('dropdownBulan')" class="bg-sky-500 hover:bg-sky-600 text-white text-[10px] xl:text-[11px] px-2 py-1 rounded-lg font-medium shadow-sm flex items-center gap-1 transition whitespace-nowrap">
+                        <span id="labelBulan">Bulan: Semua (0)</span>
+                        <i class="fa-solid fa-chevron-down text-[8px]"></i>
+                    </button>
+                    <div id="dropdownBulan" class="hidden absolute left-0 mt-1 w-52 bg-white border border-gray-200 rounded-lg shadow-2xl z-[100] p-2 text-xs">
+                        <div class="flex justify-between items-center pb-1.5 mb-1.5 border-b">
+                            <label class="flex items-center font-bold cursor-pointer text-sky-700">
+                                <input type="checkbox" id="chkAllBulan" onchange="toggleSelectAll('Bulan')" checked class="mr-1.5 rounded text-sky-600"> Pilih Semua
+                            </label>
+                            <button onclick="closeDropdowns()" class="text-gray-400 hover:text-gray-600 text-xs"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                        <div id="optionsBulan" class="max-h-48 overflow-y-auto flex flex-col gap-1"></div>
+                    </div>
+                </div>
+
+                              <!-- Tahun Dropdown -->
+                <div class="relative inline-block text-left z-50">
+                    <button type="button" onclick="toggleDropdown('dropdownTahun')" class="bg-sky-500 hover:bg-sky-600 text-white text-[10px] xl:text-[11px] px-2 py-1 rounded-lg font-medium shadow-sm flex items-center gap-1 transition whitespace-nowrap">
+                        <span id="labelTahun">Tahun: Semua (0)</span>
+                        <i class="fa-solid fa-chevron-down text-[8px]"></i>
+                    </button>
+                    <div id="dropdownTahun" class="hidden absolute left-0 mt-1 w-52 bg-white border border-gray-200 rounded-lg shadow-2xl z-[100] p-2 text-xs">
+                        <div class="flex justify-between items-center pb-1.5 mb-1.5 border-b">
+                            <label class="flex items-center font-bold cursor-pointer text-sky-700">
+                                <input type="checkbox" id="chkAllTahun" onchange="toggleSelectAll('Tahun')" checked class="mr-1.5 rounded text-sky-600"> Pilih Semua
+                            </label>
+                            <button onclick="closeDropdowns()" class="text-gray-400 hover:text-gray-600 text-xs"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                        <div id="optionsTahun" class="max-h-48 overflow-y-auto flex flex-col gap-1"></div>
                     </div>
                 </div>
 
@@ -585,8 +619,13 @@
         // Global Data Cache for Trend Span Repetitive Export
         let trendSpanExportData = [];
 
-        let filterOptions = { DateOpen: [], Area: [], Regional: [], Status: [], MNO: [], SoW: ['SoW', 'Non-SoW'], TicketInfo: ['MMP', 'Non-MMP'] };
-        let selectedFilters = { DateOpen: [], Area: [], Regional: [], Status: [], MNO: [], SoW: ['SoW'], TicketInfo: ['MMP'] };
+        let filterOptions = { DateOpen: [],Bulan: [],Tahun: [], Area: [], Regional: [], Status: [], MNO: [], SoW: ['SoW', 'Non-SoW'], TicketInfo: ['MMP', 'Non-MMP'] };
+        let selectedFilters = { DateOpen: [],Bulan: [],Tahun: [], Area: [], Regional: [], Status: [], MNO: [], SoW: ['SoW'], TicketInfo: ['MMP'] };
+
+      const monthNamesIndo = [
+            'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+            'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+          ];
 
         function initMap() {
             map = L.map('map').setView([-2.548926, 118.014863], 4.5);
@@ -1082,7 +1121,7 @@
             const dd = String(dt.getDate()).padStart(2, '0');
             return `${yyyy}-${mm}-${dd}`;
         }
-
+      
         function getCleanBranch(row) {
             const candidateKeys = ['Branch', 'BRANCH', 'Branch Name', 'Cabang', 'CABANG', 'Work Center', 'WORK CENTER', 'NSO', 'NSO Name', 'Cluster', 'CLUSTER'];
             for (let key of candidateKeys) {
@@ -1255,7 +1294,7 @@
         }
 
         function toggleDropdown(id) {
-            const dropdowns = ['dropdownDateOpen', 'dropdownArea', 'dropdownRegional', 'dropdownStatus', 'dropdownMNO', 'dropdownSoW', 'dropdownTicketInfo'];
+            const dropdowns = ['dropdownDateOpen','dropdownBulan','dropdownTahun', 'dropdownArea', 'dropdownRegional', 'dropdownStatus', 'dropdownMNO', 'dropdownSoW', 'dropdownTicketInfo'];
             dropdowns.forEach(d => {
                 if (d === id) {
                     document.getElementById(d).classList.toggle('hidden');
@@ -1266,7 +1305,7 @@
         }
 
         function closeDropdowns() {
-            ['dropdownDateOpen', 'dropdownArea', 'dropdownRegional', 'dropdownStatus', 'dropdownMNO', 'dropdownSoW', 'dropdownTicketInfo'].forEach(d => {
+            ['dropdownDateOpen','dropdownBulan','dropdownTahun', 'dropdownArea', 'dropdownRegional', 'dropdownStatus', 'dropdownMNO', 'dropdownSoW', 'dropdownTicketInfo'].forEach(d => {
                 const el = document.getElementById(d);
                 if (el) el.classList.add('hidden');
             });
@@ -1515,6 +1554,8 @@ function calculateTTRFromTimelyReport(row) {
 
         function populateFilterDropdowns(data) {
             const dateOpens = new Set();
+            const bulans = new Set();
+            const tahuns = new Set();
             const areas = new Set();
             const regionals = new Set();
             const statuses = new Set();
@@ -1522,6 +1563,14 @@ function calculateTTRFromTimelyReport(row) {
 
             data.forEach(row => {
                 dateOpens.add(getCleanDateOpen(row));
+                const dt = getStartOpenTime(row);
+                if (dt) {
+                    bulans.add(monthNamesIndo[dt.getMonth()]);
+                    tahuns.add(dt.getFullYear().toString());
+                } else {
+                    bulans.add('(Kosong)');
+                    tahuns.add('(Kosong)');
+                }
                 areas.add(getCleanValue(row['Area']));
                 regionals.add(getCleanValue(row['Regional MTEL']));
                 statuses.add(getCleanValue(row['Status']));
@@ -1529,6 +1578,8 @@ function calculateTTRFromTimelyReport(row) {
             });
 
             filterOptions.DateOpen = Array.from(dateOpens).sort();
+            filterOptions.Bulan = Array.from(bulans).sort();
+            filterOptions.Tahun = Array.from(tahuns).sort();
             filterOptions.Area = Array.from(areas).sort();
             filterOptions.Regional = Array.from(regionals).sort();
             filterOptions.Status = Array.from(statuses).sort();
@@ -1537,6 +1588,8 @@ function calculateTTRFromTimelyReport(row) {
             filterOptions.TicketInfo = ['MMP', 'Non-MMP'];
 
             selectedFilters.DateOpen = [...filterOptions.DateOpen];
+            selectedFilters.Bulan = [...filterOptions.Bulan];
+            selectedFilters.Tahun = [...filterOptions.Tahun];
             selectedFilters.Area = [...filterOptions.Area];
             selectedFilters.Regional = [...filterOptions.Regional];
             selectedFilters.Status = [...filterOptions.Status];
@@ -1550,6 +1603,8 @@ function calculateTTRFromTimelyReport(row) {
             }
 
             fillMultiSelectOptions('DateOpen');
+            fillMultiSelectOptions('Bulan');
+            fillMultiSelectOptions('Tahun');
             fillMultiSelectOptions('Area');
             fillMultiSelectOptions('Regional');
             fillMultiSelectOptions('Status');
@@ -1620,6 +1675,8 @@ function calculateTTRFromTimelyReport(row) {
             if (category === 'SoW') categoryDisplayName = 'SoW';
             else if (category === 'TicketInfo') categoryDisplayName = 'Ticket Info';
             else if (category === 'DateOpen') categoryDisplayName = 'Tgl Open';
+            else if (category === 'Bulan') categoryDisplayName = 'Bulan';
+            else if (category === 'Tahun') categoryDisplayName = 'Tahun';
             else if (category === 'Regional') categoryDisplayName = 'Reg.';
 
             if (count === total || total === 0) {
@@ -1639,7 +1696,15 @@ function calculateTTRFromTimelyReport(row) {
             if (!rawDataset.length) return;
 
             let filtered = rawDataset.filter(row => {
+              const dt = getStartOpenTime(row);
+
+              // Deklarasi variabel rowMonth dan rowYear yang sebelumnya hilang
+        const rowMonth = dt ? monthNamesIndo[dt.getMonth()] : '(Kosong)';
+        const rowYear = dt ? dt.getFullYear().toString() : '(Kosong)';
+              
                 const matchDateOpen = selectedFilters.DateOpen.includes(getCleanDateOpen(row));
+                const matchBulan = selectedFilters.Bulan.includes(rowMonth);
+                const matchTahun = selectedFilters.Tahun.includes(rowYear);
                 const matchArea = selectedFilters.Area.includes(getCleanValue(row['Area']));
                 const matchRegional = selectedFilters.Regional.includes(getCleanValue(row['Regional MTEL']));
                 const matchStatus = selectedFilters.Status.includes(getCleanValue(row['Status']));
@@ -1653,8 +1718,10 @@ function calculateTTRFromTimelyReport(row) {
                 const rowTicketInfoCategory = rowIsNonMMP ? 'Non-MMP' : 'MMP';
                 const matchTicketInfo = selectedFilters.TicketInfo.includes(rowTicketInfoCategory);
 
-                return matchDateOpen && matchArea && matchRegional && matchStatus && matchMNO && matchSoW && matchTicketInfo;
+                return matchDateOpen && matchBulan && matchTahun && matchArea && matchRegional && matchStatus && matchMNO && matchSoW && matchTicketInfo;
             });
+
+          
 
             if (deduplicateTiket) {
                 const seenTiket = new Set();
