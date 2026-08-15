@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+    <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Performance FO - Mitratel (v12 with Granular Trend Span Toggle)</title>
+    <title>Dashboard Performance FO - Mitratel (v15 Precise TTR Net Logic)</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Chart.js -->
@@ -224,7 +224,7 @@
         <div class="bg-orange-500 text-white p-4 rounded-xl shadow-md text-center">
             <span class="text-xs uppercase font-semibold tracking-wider opacity-90">Rata-rata MTTR NET</span>
             <div id="kpiAvgMTTR" class="text-2xl font-extrabold mt-1">0.00 <span class="text-sm font-normal">Jam</span></div>
-            <span id="kpiAvgMTTRBadge" class="text-[10px] bg-amber-600/80 px-2 py-0.5 rounded font-bold">Stop Clock Deduced (ON)</span>
+            <span id="kpiAvgMTTRBadge" class="text-[10px] bg-amber-600/80 px-2 py-0.5 rounded font-bold">Open to Tech Close - SC Log</span>
         </div>
         <div class="bg-orange-500 text-white p-4 rounded-xl shadow-md text-center">
             <span class="text-xs uppercase font-semibold tracking-wider opacity-90">SLA Compliance</span>
@@ -436,7 +436,6 @@
                     <p class="text-[11px] text-gray-500">Pilih tampilan waktu (Daily/Weekly/Monthly) dan klik kartu summary untuk filter spasial</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
-                    <!-- Toggle Granularity Switch untuk Trend Repetitive Span -->
                     <div class="inline-flex rounded-lg p-0.5 bg-slate-100 border border-slate-200 text-xs font-semibold">
                         <button id="btnTrendSpanDaily" onclick="setTrendSpanGranularity('daily')" class="px-2.5 py-1 rounded-md bg-sky-600 text-white shadow-sm transition">Daily</button>
                         <button id="btnTrendSpanWeekly" onclick="setTrendSpanGranularity('weekly')" class="px-2.5 py-1 rounded-md text-gray-600 hover:text-sky-600 transition">Weekly</button>
@@ -572,7 +571,7 @@
         let chartInstances = {};
         let timeGranularity = 'daily'; 
         let mnoTrendGranularity = 'daily'; 
-        let trendSpanGranularity = 'daily'; // New Variable for Trend Span Repetitive
+        let trendSpanGranularity = 'daily'; 
         let selectedMnoTrend = 'ALL'; 
         let deduplicateTiket = true;   
         let applyStopClock = true;     
@@ -1008,7 +1007,6 @@
 
             trendSpanTableBody.innerHTML = '';
             displayPairs.forEach(([pairName, info], idx) => {
-                // Grouping RCA per span pair berdasarkan periode
                 const spanPeriodGroup = {};
                 info.incidents.forEach(inc => {
                     const gInfo = getGroupKeyInfo(inc.openTime || inc.dateStr, trendSpanGranularity);
@@ -1058,7 +1056,6 @@
                     }
                 });
 
-                // Generate Automatic Action Plan
                 const recommendedActionPlan = generateActionPlan(spanAllRcas);
                 exportRowObj['Action Plan'] = recommendedActionPlan;
 
@@ -1204,14 +1201,14 @@
                 toggleText.innerText = "ON";
                 toggleText.className = "ml-2 text-xs font-bold text-amber-600";
                 if (badgeText) {
-                    badgeText.innerText = "Stop Clock Deduced (ON)";
+                    badgeText.innerText = "Open to Tech Close - SC Log";
                     badgeText.className = "text-[10px] bg-amber-600/80 px-2 py-0.5 rounded font-bold";
                 }
             } else {
                 toggleText.innerText = "OFF";
                 toggleText.className = "ml-1 text-[11px] font-bold text-slate-400";
                 if (badgeText) {
-                    badgeText.innerText = "Gross Duration (OFF)";
+                    badgeText.innerText = "Gross Duration (Open to Tech Close)";
                     badgeText.className = "text-[10px] bg-slate-600/80 px-2 py-0.5 rounded font-bold";
                 }
             }
@@ -1281,17 +1278,6 @@
             }
         });
 
-        function getStopClockDuration(row) {
-            const posibles = ['Stop Clock (Jam)', 'Stop Clock', 'Stopclock', 'Stop Clock Duration', 'Durasi Stop Clock', 'Stop Clock Jam'];
-            for (let key of posibles) {
-                if (row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== '') {
-                    const parsed = parseFloat(row[key]);
-                    if (!isNaN(parsed)) return parsed;
-                }
-            }
-            return 0;
-        }
-
         function parseDateTime(val) {
             if (!val) return null;
             if (val instanceof Date && !isNaN(val.getTime())) return val;
@@ -1325,10 +1311,12 @@
             return null;
         }
 
+        // 1. Ambil Jam Tiket dicreate
         function getStartOpenTime(row) {
             const openKeys = [
                 'Start TT Open Time', 'TT Open Time', 'Open Time',
-                'Start Open Time', 'Created Time', 'TT Start Time', 'Time Open'
+                'Start Open Time', 'Created Time', 'TT Start Time', 'Time Open',
+                'Tiket Create Time', 'Create Time'
             ];
             for (let key of openKeys) {
                 if (row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== '' && String(row[key]).trim() !== '0') {
@@ -1336,69 +1324,138 @@
                     if (dt) return dt;
                 }
             }
-            return null;
-        }
 
-        function getReqCloseTime(row) {
-            const reqCloseKeys = [
-                'Req Close Time', 'Req Close', 'Request Close Time', 'Request Close',
-                'Req Close Date', 'Req Closed Time', 'TT Req Close Time', 'Time Req Close'
-            ];
-            for (let key of reqCloseKeys) {
-                if (row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== '' && String(row[key]).trim() !== '0') {
-                    const dt = parseDateTime(row[key]);
+            // Ekstraksi langsung dari Timely Report jika di kolom utama tidak terbaca
+            const timelyText = String(row['Timely Report'] || '');
+            if (timelyText) {
+                const matchOpen = timelyText.match(/(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\s*[\d:]+)\s*=\s*Tiket dicreate/i) ||
+                                  timelyText.match(/(\d{1,2}:\d{2})\s*=\s*Tiket dicreate/i);
+                if (matchOpen && matchOpen[1]) {
+                    const dt = parseDateTime(matchOpen[1]);
                     if (dt) return dt;
                 }
             }
+
             return null;
         }
 
-        function getClosedTime(row) {
-            const closedKeys = [
-                'Closed Time', 'Tech Close Time', 'Technical Close Time', 'Time Tech Close',
-                'Tech Close Date', 'Tech Close', 'End TT Closed Time', 'TT Tech Close Time',
-                'Date Tech Close', 'TT Closed Time', 'Close Time', 'Closed Date'
-            ];
-            for (let key of closedKeys) {
-                if (row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== '' && String(row[key]).trim() !== '0') {
-                    const dt = parseDateTime(row[key]);
-                    if (dt) return dt;
-                }
-            }
+        // 2. Ambil Jam Tech Close / Req Close Ticket
+function getEffectiveEndTime(row) {
+    // Check 1: Kolom Tech Close / Req Close Time
+    const techCloseKeys = [
+        'Req Close Time', 'Req Close', 'Request Close Time',
+        'Tech Close Time', 'Technical Close Time', 'Time Tech Close', 'Tech Close'
+    ];
+    for (let key of techCloseKeys) {
+        if (row[key] !== undefined && row[key] !== null) {
+            const dt = parseDateTime(row[key]);
+            if (dt) return dt;
+        }
+    }
+	
+	// Check 2: Fallback ke Closed Time (jika Req Close '0000-00-00' atau kosong)
+    const closedKeys = ['Closed Time', 'Closed Date', 'Time Closed', 'Close Time'];
+    for (let key of closedKeys) {
+        if (row[key] !== undefined && row[key] !== null) {
+            const dt = parseDateTime(row[key]);
+            if (dt) return dt;
+        }
+    }
+	
+            // Ekstraksi langsung dari Timely Report
+const timelyText = String(row['Timely Report'] || '');
+    if (timelyText) {
+        // Cari entri Tech Close / Request Close spesifik di teks log
+        const matchTechClose = timelyText.match(/(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\s*[\d:]+)\s*=\s*(Tech Close|Request close)/i);
+        if (matchTechClose && matchTechClose[1]) {
+            const dt = parseDateTime(matchTechClose[1]);
+            if (dt) return dt;
+        }
+		
+		// Ambil timestamp paling akhir yang ada di log Timely Report
+        const allTimestamps = [...timelyText.matchAll(/(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\s+\d{1,2}:\d{2}(?::\d{2})?)/g)];
+        if (allTimestamps.length > 0) {
+            const lastTimestampStr = allTimestamps[allTimestamps.length - 1][1];
+            const dt = parseDateTime(lastTimestampStr);
+            if (dt) return dt;
+        }
+    }
+     
             return null;
         }
 
-        function calculateTTRFromTimelyReport(row) {
-            let rawTTR = 0;
-            let calculatedDirectly = false;
+        // 3. PARSER PRESI TERBARU UNTUK STOP CLOCK DARI TIMELY REPORT & EXCEL
+  function getStopClockDuration(row) {
+    // a. Cek dari Log Timely Report (Start Stop Clock s/d Finish Stop Clock)
+    const timelyText = String(row['Timely Report'] || '');
+    if (timelyText) {
+        const scStartMatch = timelyText.match(/(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\s+\d{1,2}:\d{2})\s*=\s*Start Stop Clock/i);
+        const scEndMatch = timelyText.match(/(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\s+\d{1,2}:\d{2})\s*=\s*(Finish Stop Clock|Lanjut)/i);
 
-            const openDate = getStartOpenTime(row);
-            const reqCloseDate = getReqCloseTime(row);
-            const closedDate = getClosedTime(row);
-
-            const endDate = reqCloseDate || closedDate;
-
-            if (openDate && endDate) {
-                const diffHours = (endDate - openDate) / (1000 * 60 * 60);
-                if (diffHours >= 0) {
-                    rawTTR = parseFloat(diffHours.toFixed(2));
-                    calculatedDirectly = true;
-                }
-            }
-
-            if (!calculatedDirectly) {
-                const defaultVal = parseFloat(row['TTR NET (Jam)'] || row['TTR Gross (Jam)'] || row['TTR (Jam)'] || row['TTR']);
-                rawTTR = isNaN(defaultVal) ? 0 : defaultVal;
-            }
-
-            if (applyStopClock) {
-                const scHours = getStopClockDuration(row);
-                const netTTR = rawTTR - scHours;
-                return netTTR >= 0 ? parseFloat(netTTR.toFixed(2)) : 0;
-            } else {
-                return rawTTR;
+        if (scStartMatch && scEndMatch) {
+            const dtStart = parseDateTime(scStartMatch[1]);
+            const dtEnd = parseDateTime(scEndMatch[1]);
+            if (dtStart && dtEnd && dtEnd > dtStart) {
+                return (dtEnd.getTime() - dtStart.getTime()) / (1000 * 60 * 60);
             }
         }
+    }
+       // b. Fallback ke Nilai Kolom Excel Stop Clock
+    const scKeys = ['Stop Clock', 'Stop Clock (Jam)', 'Stopclock', 'Duration SC'];
+    for (let key of scKeys) {
+        if (row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== '') {
+            const parsed = parseFloat(row[key]);
+            if (!isNaN(parsed) && parsed > 0) {
+                // Konversi otomatis jika angka diisi dalam menit (> 24)
+                return parsed > 24 ? parsed / 60 : parsed;
+            }
+        }
+    }
+
+            return 0;
+        }
+
+        // 4. RUMUS TTR NET BARU (KONDISI-1 & KONDISI-2 DENGAN PRESISI TINGGI)
+function calculateTTRFromTimelyReport(row) {
+    // 1. Filter Tiket Cancelled / Direct Cancel
+    const statusStr = String(row['Status'] || '').toLowerCase();
+    const timelyText = String(row['Timely Report'] || '').toLowerCase();
+
+    if (statusStr.includes('cancel') || timelyText.includes('request cancel') || timelyText.includes('tt cancel')) {
+        return 0.00;
+    }
+
+    let rawTTR = 0;
+    let calculatedDirectly = false;
+
+    const openDate = getStartOpenTime(row);
+    // Menggunakan helper End Time yang mendukung Fallback
+    const endDate = getEffectiveEndTime(row); 
+
+    // 2. Kalkulasi Durasi Gross berbasis Timestamp Lintas Hari
+    if (openDate && endDate) {
+        const diffMs = endDate.getTime() - openDate.getTime();
+        if (diffMs >= 0) {
+            rawTTR = diffMs / (1000 * 60 * 60); // Konversi ke Jam
+            calculatedDirectly = true;
+        }
+    }
+
+    // Fallback ke kolom TTR NET di Excel jika timestamp tidak lengkap/invalid
+    if (!calculatedDirectly) {
+        const defaultVal = parseFloat(row['TTR NET (Jam)'] || row['TTR Gross (Jam)'] || row['TTR (Jam)'] || row['TTR']);
+        rawTTR = isNaN(defaultVal) ? 0 : defaultVal;
+    }
+
+    // 3. Pengurangan Stop Clock (Jika Toggle SC ON)
+    if (typeof applyStopClock !== 'undefined' ? applyStopClock : true) {
+        const scHours = getStopClockDuration(row);
+        const netTTR = rawTTR - scHours;
+        return netTTR >= 0 ? parseFloat(netTTR.toFixed(2)) : 0.00;
+    } else {
+        return parseFloat(rawTTR.toFixed(2));
+    }
+}
 
         function extractRCA(row) {
             if (row['RCA'] && String(row['RCA']).trim() !== '' && String(row['RCA']).trim() !== '-') {
@@ -1683,7 +1740,6 @@
                 document.getElementById('trendSpanTableBody').innerHTML = '<tr><td colspan="10" class="text-center py-4 text-gray-400">Tidak ada data.</td></tr>';
                 document.getElementById('trendSpanCounter').innerText = "0 Span Pair";
 
-                // Reset Summary Cards
                 document.getElementById('summary1x').innerText = '0';
                 document.getElementById('summary2x').innerText = '0';
                 document.getElementById('summary3x').innerText = '0';
