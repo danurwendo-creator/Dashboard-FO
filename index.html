@@ -2130,6 +2130,189 @@ function calculateTTRFromTimelyReport(row) {
             initMap();
             initCharts();
         });
+		
+		/**
+ * Dashboard Performance FO - High-Speed Engine (Pure JS Module)
+ * Tidak mengubah tatanan/layout HTML asli.
+ */
+
+(function () {
+    'use strict';
+
+    // State Global
+    let rawExcelData = [];
+    let cachedProcessedData = [];
+    let isDeduplicate = true;
+    let isStopClock = true;
+
+    // Standardisasi Parsing Tanggal & Waktu (Single Pass Optimization)
+    function parseExcelDate(val) {
+        if (!val) return null;
+        if (val instanceof Date && !isNaN(val.getTime())) return val;
+        
+        const str = String(val).trim();
+        if (!str || str === 'NaN' || str === '-' || str === '0') return null;
+
+        // Mendukung format Serial Number Excel
+        if (typeof val === 'number' || (!isNaN(val) && !str.includes('-') && !str.includes('/') && !str.includes(':'))) {
+            const num = parseFloat(val);
+            if (num > 30000 && num < 60000) {
+                const date = new Date(Math.round((num - (25567 + 2)) * 86400 * 1000));
+                return isNaN(date.getTime()) ? null : date;
+            }
+        }
+
+        let d = new Date(str.replace(' ', 'T'));
+        if (!isNaN(d.getTime())) return d;
+
+        // Parsing regex untuk format dd/mm/yyyy hh:mm:ss
+        const match = str.match(/^(\d{1,4})[\/\-](\d{1,2})[\/\-](\d{1,4})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+        if (match) {
+            let y = parseInt(match[1], 10);
+            let m = parseInt(match[2], 10) - 1;
+            let day = parseInt(match[3], 10);
+            if (y < 100) y += 2000;
+            if (day > 1000) { const tmp = y; y = day; day = tmp; }
+            const hh = match[4] ? parseInt(match[4], 10) : 0;
+            const mm = match[5] ? parseInt(match[5], 10) : 0;
+            const ss = match[6] ? parseInt(match[6], 10) : 0;
+            d = new Date(y, m, day, hh, mm, ss);
+            if (!isNaN(d.getTime())) return d;
+        }
+        return null;
+    }
+
+    // Pre-processing: Menghitung properti berat HANYA 1 KALI saat upload
+    function preprocessDataset(dataset) {
+        return dataset.map(row => {
+            const openKeys = ['Start TT Open Time', 'TT Open Time', 'Open Time', 'Created Time', 'TT Start Time'];
+            let openTime = null;
+            for (let k of openKeys) {
+                if (row[k]) { openTime = parseExcelDate(row[k]); if (openTime) break; }
+            }
+
+            const closeKeys = ['Req Close Time', 'Tech Close Time', 'Technical Close Time', 'Closed Time', 'Close Time'];
+            let endTime = null;
+            for (let k of closeKeys) {
+                if (row[k]) { endTime = parseExcelDate(row[k]); if (endTime) break; }
+            }
+
+            const statusStr = String(row['Status'] || '').toLowerCase();
+            const isCancelled = statusStr.includes('cancel');
+
+            let grossTTR = 0;
+            if (!isCancelled && openTime && endTime) {
+                const diffMs = endTime.getTime() - openTime.getTime();
+                if (diffMs >= 0) grossTTR = diffMs / (1000 * 60 * 60);
+            }
+
+            let scHours = 0;
+            const scKeys = ['Stop Clock', 'Stop Clock (Jam)', 'Stopclock', 'Duration SC'];
+            for (let k of scKeys) {
+                if (row[k] && !isNaN(row[k])) {
+                    const parsed = parseFloat(row[k]);
+                    if (parsed > 0) { scHours = parsed > 24 ? parsed / 60 : parsed; break; }
+                }
+            }
+
+            const netTTR = isCancelled ? 0 : Math.max(0, grossTTR - scHours);
+
+            return {
+                ...row,
+                _openTime: openTime,
+                _endTime: endTime,
+                _grossTTR: grossTTR,
+                _scHours: scHours,
+                _netTTR: parseFloat(netTTR.toFixed(2)),
+                _ticketNo: String(row['Tiket'] || row['Nomor TT'] || row['Ticket No'] || '').trim(),
+                _statusStr: statusStr,
+                _dateStr: openTime ? openTime.toISOString().slice(0, 10) : '(Kosong)',
+                _regional: String(row['Regional MTEL'] || row['Regional'] || '(Kosong)').trim(),
+                _mno: String(row['MNO'] || 'Other').trim()
+            };
+        });
+    }
+
+    // Fungsi Pengolah Data Utama yang Cepat
+    window.processDatasetOptimized = function (data) {
+        if (!data || !data.length) return;
+        
+        console.time("Processing Excel Data");
+        cachedProcessedData = preprocessDataset(data);
+
+        // Filter Duplikasi jika aktif
+        let filtered = cachedProcessedData;
+        if (isDeduplicate) {
+            const seen = new Set();
+            filtered = filtered.filter(row => {
+                if (!row._ticketNo) return true;
+                if (seen.has(row._ticketNo)) return false;
+                seen.add(row._ticketNo);
+                return true;
+            });
+        }
+
+        // Render Ulang Metrik (Gunakan ID Elemen HTML Asli Anda)
+        renderKPIs(filtered);
+        console.timeEnd("Processing Excel Data");
+    };
+
+    function renderKPIs(data) {
+        const totalTT = data.length;
+        let closedCount = 0;
+        let cancelledCount = 0;
+        let totalNetTTR = 0;
+        let inSLACount = 0;
+
+        data.forEach(row => {
+            if (row._statusStr.includes('closed') || row._statusStr.includes('tech close')) closedCount++;
+            if (row._statusStr.includes('cancel')) cancelledCount++;
+
+            const currentTTR = isStopClock ? row._netTTR : row._grossTTR;
+            totalNetTTR += currentTTR;
+            if (currentTTR <= 4.0) inSLACount++;
+        });
+
+        const avgMTTR = totalTT > 0 ? (totalNetTTR / totalTT) : 0;
+        const slaPct = totalTT > 0 ? ((inSLACount / totalTT) * 100) : 0;
+
+        // Update nilai ke ID HTML asli jika ada
+        const elTotal = document.getElementById('kpiTotalTT') || document.getElementById('totalTT');
+        if (elTotal) elTotal.innerText = totalTT.toLocaleString('id-ID');
+
+        const elClosed = document.getElementById('kpiClosedTT') || document.getElementById('closedTT');
+        if (elClosed) elClosed.innerText = closedCount.toLocaleString('id-ID');
+
+        const elAvg = document.getElementById('kpiAvgMTTR') || document.getElementById('avgMTTR');
+        if (elAvg) elAvg.innerText = avgMTTR.toFixed(2) + ' Jam';
+
+        const elSLA = document.getElementById('kpiSLA') || document.getElementById('slaCompliance');
+        if (elSLA) elSLA.innerText = slaPct.toFixed(1) + '%';
+    }
+
+    // Listener Otomatis Mengikat Input File Asli Anda
+    document.addEventListener('DOMContentLoaded', () => {
+        const fileInputs = document.querySelectorAll('input[type="file"]');
+        fileInputs.forEach(input => {
+            input.addEventListener('change', function (e) {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = function (evt) {
+                    if (typeof XLSX !== 'undefined') {
+                        const data = new Uint8Array(evt.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                        const json = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+                        window.processDatasetOptimized(json);
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            });
+        });
+    });
+})();
     </script>
 </body>
 </html>
