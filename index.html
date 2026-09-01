@@ -21,7 +21,8 @@
 <body class="bg-slate-100 font-sans p-4">
 
     <!-- Header Section -->
-  <header class="bg-gradient-to-r from-red-800 to-red-600 text-white rounded-xl p-4 mb-4 shadow-md flex justify-between items-center">
+    <!-- Header Section -->
+	<header class="bg-gradient-to-r from-red-800 to-red-600 text-white rounded-xl p-4 mb-4 shadow-md flex justify-between items-center">
         <div>
             <h1 class="text-2xl font-bold tracking-wide">Dashboard Performance FO Mitratel</h1>
             <p class="text-xs text-red-200">Mitratel FO Trouble Ticket Data Analytics</p>
@@ -192,7 +193,6 @@
                         <div id="optionsTicketInfo" class="max-h-48 overflow-y-auto flex flex-col gap-1"></div>
                     </div>
                 </div>
-
             </div>
 
             <!-- Group 2: Toggles & Search & Upload Button -->
@@ -244,9 +244,7 @@
                         <input type="file" id="excelFileInput" accept=".xlsx, .xls" class="hidden" onchange="handleFileUpload(event)">
                     </label>
                 </div>
-
             </div>
-
         </div>
     </section>
 
@@ -739,7 +737,7 @@
             function getMNOBorderWidth(context) { return 2; }
 
             // MNO Stacked Trend Chart
-            chartInstances.mnoTrend = new Chart(document.getElementById('mnoTrendChart'), {
+ chartInstances.mnoTrend = new Chart(document.getElementById('mnoTrendChart'), {
                 type: 'bar',
                 data: {
                     labels: [],
@@ -840,7 +838,6 @@
                     }
                 }
             });
-
             // SLA Donut Chart
             chartInstances.sla = new Chart(document.getElementById('slaDonutChart'), {
                 type: 'doughnut',
@@ -1002,7 +999,7 @@
 
             return "Investigasi Lapangan & OTDR Audit Jalur";
         }
-
+		
         function setTrendSpanGranularity(granularity) {
             trendSpanGranularity = granularity;
             ['daily', 'weekly', 'monthly'].forEach(g => {
@@ -2119,63 +2116,324 @@ function calculateTTRFromTimelyReport(row) {
             chartInstances.regional.data.datasets[1].data = sortedReg.map(x => (x[1].validCount > 0 ? (x[1].sumTTR / x[1].validCount).toFixed(2) : 0));
             chartInstances.regional.update();
 
-            // Update MTTR Trend Chart
-            const sortedTrendKeys = Object.keys(trendData).sort();
-            chartInstances.trend.data.labels = sortedTrendKeys.map(k => trendData[k].label);
-            chartInstances.trend.data.datasets[0].data = sortedTrendKeys.map(k => trendData[k].inSLA);
-            chartInstances.trend.data.datasets[1].data = sortedTrendKeys.map(k => trendData[k].outSLA);
-            chartInstances.trend.data.datasets[2].data = sortedTrendKeys.map(k => trendData[k].count > 0 ? (trendData[k].sumTTR / trendData[k].count).toFixed(2) : 0);
+            // Update MTTR Trend Combo Chart
+            const sortedKeys = Object.keys(trendData).sort();
+            chartInstances.trend.data.labels = sortedKeys.map(k => trendData[k].label);
+            chartInstances.trend.data.datasets[0].data = sortedKeys.map(k => trendData[k].inSLA);
+            chartInstances.trend.data.datasets[1].data = sortedKeys.map(k => trendData[k].outSLA);
+            chartInstances.trend.data.datasets[2].data = sortedKeys.map(k => (trendData[k].count > 0 ? (trendData[k].sumTTR / trendData[k].count).toFixed(2) : 0));
             chartInstances.trend.update();
 
-            // Update Branch Chart & Table
-            const sortedBranches = Object.entries(branchData).sort((a,b) => b[1].count - a[1].count);
-            document.getElementById('branchCounter').innerText = `${sortedBranches.length} Branch`;
-            
-            chartInstances.branch.data.labels = sortedBranches.map(x => x[0]);
-            chartInstances.branch.data.datasets[0].data = sortedBranches.map(x => x[1].inSLA);
-            chartInstances.branch.data.datasets[1].data = sortedBranches.map(x => x[1].outSLA);
-            chartInstances.branch.data.datasets[2].data = sortedBranches.map(x => x[1].validTTRCount > 0 ? (x[1].sumTTR / x[1].validTTRCount).toFixed(2) : 0);
+            // Update MNO Specific MTTR Trend
+            const mnoTrendData = {};
+            const mnos = ['IOH', 'XL', 'TSEL', 'ALITA'];
+
+            data.forEach(row => {
+                const mnoVal = getCleanMNO(row);
+                if (selectedMnoTrend === 'ALL' || mnoVal.toUpperCase() === selectedMnoTrend.toUpperCase()) {
+                    const gInfoMno = getGroupKeyInfo(row['Start TT Open Time'], mnoTrendGranularity);
+                    const sKeyMno = gInfoMno.sortKey;
+                    if (!mnoTrendData[sKeyMno]) {
+                        mnoTrendData[sKeyMno] = {
+                            label: gInfoMno.label,
+                            sumTTR: 0,
+                            count: 0,
+                            mno: {
+                                IOH: { inSLA: 0, outSLA: 0, sumTTR: 0, count: 0 },
+                                XL: { inSLA: 0, outSLA: 0, sumTTR: 0, count: 0 },
+                                TSEL: { inSLA: 0, outSLA: 0, sumTTR: 0, count: 0 },
+                                ALITA: { inSLA: 0, outSLA: 0, sumTTR: 0, count: 0 }
+                            }
+                        };
+                    }
+                    const ttrVal = calculateTTRFromTimelyReport(row);
+                    mnoTrendData[sKeyMno].count++;
+                    if (!isNaN(ttrVal)) {
+                        mnoTrendData[sKeyMno].sumTTR += ttrVal;
+                        const mnoUpper = mnoVal.toUpperCase();
+                        const targetMNO = mnos.includes(mnoUpper) ? mnoUpper : (mnos.find(m => mnoUpper.includes(m)) || null);
+                        if (targetMNO && mnoTrendData[sKeyMno].mno[targetMNO]) {
+                            mnoTrendData[sKeyMno].mno[targetMNO].count++;
+                            mnoTrendData[sKeyMno].mno[targetMNO].sumTTR += ttrVal;
+                            if (ttrVal <= 4.0) mnoTrendData[sKeyMno].mno[targetMNO].inSLA++;
+                            else mnoTrendData[sKeyMno].mno[targetMNO].outSLA++;
+                        }
+                    }
+                }
+            });
+
+            const sortedMnoTrendKeys = Object.keys(mnoTrendData).sort();
+            chartInstances.mnoTrend.data.labels = sortedMnoTrendKeys.map(k => mnoTrendData[k].label);
+
+            chartInstances.mnoTrend.data.datasets[0].data = sortedMnoTrendKeys.map(k => mnoTrendData[k].mno.IOH.inSLA);
+            chartInstances.mnoTrend.data.datasets[1].data = sortedMnoTrendKeys.map(k => mnoTrendData[k].mno.IOH.outSLA);
+
+            chartInstances.mnoTrend.data.datasets[2].data = sortedMnoTrendKeys.map(k => mnoTrendData[k].mno.XL.inSLA);
+            chartInstances.mnoTrend.data.datasets[3].data = sortedMnoTrendKeys.map(k => mnoTrendData[k].mno.XL.outSLA);
+
+            chartInstances.mnoTrend.data.datasets[4].data = sortedMnoTrendKeys.map(k => mnoTrendData[k].mno.TSEL.inSLA);
+            chartInstances.mnoTrend.data.datasets[5].data = sortedMnoTrendKeys.map(k => mnoTrendData[k].mno.TSEL.outSLA);
+
+            chartInstances.mnoTrend.data.datasets[6].data = sortedMnoTrendKeys.map(k => mnoTrendData[k].mno.ALITA.inSLA);
+            chartInstances.mnoTrend.data.datasets[7].data = sortedMnoTrendKeys.map(k => mnoTrendData[k].mno.ALITA.outSLA);
+
+            chartInstances.mnoTrend.data.datasets[8].data = sortedMnoTrendKeys.map(k => (mnoTrendData[k].count > 0 ? (mnoTrendData[k].sumTTR / mnoTrendData[k].count).toFixed(2) : 0));
+            chartInstances.mnoTrend.data.datasets[9].data = sortedMnoTrendKeys.map(k => (mnoTrendData[k].mno.IOH.count > 0 ? (mnoTrendData[k].mno.IOH.sumTTR / mnoTrendData[k].mno.IOH.count).toFixed(2) : null));
+            chartInstances.mnoTrend.data.datasets[10].data = sortedMnoTrendKeys.map(k => (mnoTrendData[k].mno.XL.count > 0 ? (mnoTrendData[k].mno.XL.sumTTR / mnoTrendData[k].mno.XL.count).toFixed(2) : null));
+            chartInstances.mnoTrend.data.datasets[11].data = sortedMnoTrendKeys.map(k => (mnoTrendData[k].mno.TSEL.count > 0 ? (mnoTrendData[k].mno.TSEL.sumTTR / mnoTrendData[k].mno.TSEL.count).toFixed(2) : null));
+            chartInstances.mnoTrend.data.datasets[12].data = sortedMnoTrendKeys.map(k => (mnoTrendData[k].mno.ALITA.count > 0 ? (mnoTrendData[k].mno.ALITA.sumTTR / mnoTrendData[k].mno.ALITA.count).toFixed(2) : null));
+
+            chartInstances.mnoTrend.update();
+
+            // Update Branch Performance Chart & Table
+            const sortedBranch = Object.entries(branchData).sort((a,b) => b[1].count - a[1].count);
+            const branchCounter = document.getElementById('branchCounter');
+            if (branchCounter) branchCounter.innerText = `${sortedBranch.length} Branch`;
+
+            chartInstances.branch.data.labels = sortedBranch.map(x => x[0]);
+            chartInstances.branch.data.datasets[0].data = sortedBranch.map(x => x[1].inSLA);
+            chartInstances.branch.data.datasets[1].data = sortedBranch.map(x => x[1].outSLA);
+            chartInstances.branch.data.datasets[2].data = sortedBranch.map(x => (x[1].validTTRCount > 0 ? (x[1].sumTTR / x[1].validTTRCount).toFixed(2) : 0));
             chartInstances.branch.update();
 
             const branchTableBody = document.getElementById('branchTableBody');
-            branchTableBody.innerHTML = '';
-            if (sortedBranches.length === 0) {
-                branchTableBody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-gray-400">Tidak ada data Branch.</td></tr>';
-            } else {
-                sortedBranches.forEach(([bName, bInfo]) => {
-                    const tr = document.createElement('tr');
-                    tr.className = 'border-b hover:bg-slate-50 transition';
-                    const slaPct = bInfo.count > 0 ? ((bInfo.inSLA / bInfo.count) * 100).toFixed(1) : '0.0';
-                    const avgMTTRStr = bInfo.validTTRCount > 0 ? (bInfo.sumTTR / bInfo.validTTRCount).toFixed(2) : '0.00';
+            if (branchTableBody) {
+                branchTableBody.innerHTML = '';
+                if (sortedBranch.length === 0) {
+                    branchTableBody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-gray-400">Tidak ada data Branch.</td></tr>';
+                } else {
+                    sortedBranch.forEach(([bName, bInfo], idx) => {
+                        const tr = document.createElement('tr');
+                        tr.className = idx % 2 === 0 ? 'bg-white border-b hover:bg-slate-50 transition' : 'bg-slate-50/70 border-b hover:bg-slate-50 transition';
+                        const slaPct = bInfo.count > 0 ? ((bInfo.inSLA / bInfo.count) * 100).toFixed(1) : '0.0';
+                        const avgMttr = bInfo.validTTRCount > 0 ? (bInfo.sumTTR / bInfo.validTTRCount).toFixed(2) : '0.00';
 
-                    tr.innerHTML = `
-                        <td class="px-2.5 py-2 font-bold text-gray-700">${bName}</td>
-                        <td class="px-2 py-2 text-center font-bold text-sky-700">${bInfo.count}</td>
-                        <td class="px-2 py-2 text-center font-bold ${parseFloat(slaPct) >= 90 ? 'text-emerald-600' : 'text-red-600'}">${slaPct}%</td>
-                        <td class="px-2 py-2 text-center text-slate-700">${avgMTTRStr}h</td>
-                    `;
-                    branchTableBody.appendChild(tr);
-                });
+                        tr.innerHTML = `
+                            <td class="px-2.5 py-2 font-bold text-gray-700 text-[11px]">${bName}</td>
+                            <td class="px-2 py-2 text-center font-bold text-slate-800 text-[11px]">${bInfo.count}</td>
+                            <td class="px-2 py-2 text-center text-[11px]">
+                                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${parseFloat(slaPct) >= 90 ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}">${slaPct}%</span>
+                            </td>
+                            <td class="px-2 py-2 text-center font-semibold text-sky-700 text-[11px]">${avgMttr}h</td>
+                        `;
+                        branchTableBody.appendChild(tr);
+                    });
+                }
             }
         }
 
-        // Initialize Map & Charts
-        window.onload = function() {
-            initMap();
-            initCharts();
-        };
-
-        // Export Function
+        // Export Function for Trend Span Repetitive Data
         function exportTrendSpanExcel() {
             if (!trendSpanExportData || trendSpanExportData.length === 0) {
-                alert("Tidak ada data untuk di-export!");
+                alert("Tidak ada data Trend Span Repetitive untuk di-download.");
                 return;
             }
-            const ws = XLSX.utils.json_to_sheet(trendSpanExportData);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Trend_Span_Repetitive");
-            XLSX.writeFile(wb, `Trend_Span_Repetitive_${new Date().toISOString().slice(0,10)}.xlsx`);
+
+            try {
+                const worksheet = XLSX.utils.json_to_sheet(trendSpanExportData);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "Trend Span Repetitive");
+
+                const max_width = trendSpanExportData.reduce((w, r) => Math.max(w, Object.keys(r).length), 10);
+                worksheet['!cols'] = Array(max_width).fill({ wch: 22 });
+
+                XLSX.writeFile(workbook, `Trend_Span_Repetitive_${new Date().toISOString().slice(0, 10)}.xlsx`);
+            } catch (err) {
+                alert("Gagal mengunduh file Excel!");
+                console.error(err);
+            }
         }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initMap();
+            initCharts();
+			
+			/**
+ * Dashboard Performance FO - High-Speed Engine (Pure JS Module)
+ * Tidak mengubah tatanan/layout HTML asli.
+ */
+
+(function () {
+    'use strict';
+
+    // State Global
+    let rawExcelData = [];
+    let cachedProcessedData = [];
+    let isDeduplicate = true;
+    let isStopClock = true;
+
+    // Standardisasi Parsing Tanggal & Waktu (Single Pass Optimization)
+    function parseExcelDate(val) {
+        if (!val) return null;
+        if (val instanceof Date && !isNaN(val.getTime())) return val;
+        
+        const str = String(val).trim();
+        if (!str || str === 'NaN' || str === '-' || str === '0') return null;
+
+        // Mendukung format Serial Number Excel
+        if (typeof val === 'number' || (!isNaN(val) && !str.includes('-') && !str.includes('/') && !str.includes(':'))) {
+            const num = parseFloat(val);
+            if (num > 30000 && num < 60000) {
+                const date = new Date(Math.round((num - (25567 + 2)) * 86400 * 1000));
+                return isNaN(date.getTime()) ? null : date;
+            }
+        }
+
+        let d = new Date(str.replace(' ', 'T'));
+        if (!isNaN(d.getTime())) return d;
+
+        // Parsing regex untuk format dd/mm/yyyy hh:mm:ss
+        const match = str.match(/^(\d{1,4})[\/\-](\d{1,2})[\/\-](\d{1,4})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+        if (match) {
+            let y = parseInt(match[1], 10);
+            let m = parseInt(match[2], 10) - 1;
+            let day = parseInt(match[3], 10);
+            if (y < 100) y += 2000;
+            if (day > 1000) { const tmp = y; y = day; day = tmp; }
+            const hh = match[4] ? parseInt(match[4], 10) : 0;
+            const mm = match[5] ? parseInt(match[5], 10) : 0;
+            const ss = match[6] ? parseInt(match[6], 10) : 0;
+            d = new Date(y, m, day, hh, mm, ss);
+            if (!isNaN(d.getTime())) return d;
+        }
+        return null;
+    }
+
+    // Pre-processing: Menghitung properti berat HANYA 1 KALI saat upload
+    function preprocessDataset(dataset) {
+        return dataset.map(row => {
+            const openKeys = ['Start TT Open Time', 'TT Open Time', 'Open Time', 'Created Time', 'TT Start Time'];
+            let openTime = null;
+            for (let k of openKeys) {
+                if (row[k]) { openTime = parseExcelDate(row[k]); if (openTime) break; }
+            }
+
+            const closeKeys = ['Req Close Time', 'Tech Close Time', 'Technical Close Time', 'Closed Time', 'Close Time'];
+            let endTime = null;
+            for (let k of closeKeys) {
+                if (row[k]) { endTime = parseExcelDate(row[k]); if (endTime) break; }
+            }
+
+            const statusStr = String(row['Status'] || '').toLowerCase();
+            const isCancelled = statusStr.includes('cancel');
+
+            let grossTTR = 0;
+            if (!isCancelled && openTime && endTime) {
+                const diffMs = endTime.getTime() - openTime.getTime();
+                if (diffMs >= 0) grossTTR = diffMs / (1000 * 60 * 60);
+            }
+
+            let scHours = 0;
+            const scKeys = ['Stop Clock', 'Stop Clock (Jam)', 'Stopclock', 'Duration SC'];
+            for (let k of scKeys) {
+                if (row[k] && !isNaN(row[k])) {
+                    const parsed = parseFloat(row[k]);
+                    if (parsed > 0) { scHours = parsed > 24 ? parsed / 60 : parsed; break; }
+                }
+            }
+
+            const netTTR = isCancelled ? 0 : Math.max(0, grossTTR - scHours);
+
+            return {
+                ...row,
+                _openTime: openTime,
+                _endTime: endTime,
+                _grossTTR: grossTTR,
+                _scHours: scHours,
+                _netTTR: parseFloat(netTTR.toFixed(2)),
+                _ticketNo: String(row['Tiket'] || row['Nomor TT'] || row['Ticket No'] || '').trim(),
+                _statusStr: statusStr,
+                _dateStr: openTime ? openTime.toISOString().slice(0, 10) : '(Kosong)',
+                _regional: String(row['Regional MTEL'] || row['Regional'] || '(Kosong)').trim(),
+                _mno: String(row['MNO'] || 'Other').trim()
+            };
+        });
+    }
+
+    // Fungsi Pengolah Data Utama yang Cepat
+    window.processDatasetOptimized = function (data) {
+        if (!data || !data.length) return;
+        
+        console.time("Processing Excel Data");
+        cachedProcessedData = preprocessDataset(data);
+
+        // Filter Duplikasi jika aktif
+        let filtered = cachedProcessedData;
+        if (isDeduplicate) {
+            const seen = new Set();
+            filtered = filtered.filter(row => {
+                if (!row._ticketNo) return true;
+                if (seen.has(row._ticketNo)) return false;
+                seen.add(row._ticketNo);
+                return true;
+            });
+        }
+
+        // Render Ulang Metrik (Gunakan ID Elemen HTML Asli Anda)
+        renderKPIs(filtered);
+        console.timeEnd("Processing Excel Data");
+    };
+
+    function renderKPIs(data) {
+        const totalTT = data.length;
+        let closedCount = 0;
+        let cancelledCount = 0;
+        let totalNetTTR = 0;
+        let inSLACount = 0;
+
+        data.forEach(row => {
+            if (row._statusStr.includes('closed') || row._statusStr.includes('tech close')) closedCount++;
+            if (row._statusStr.includes('cancel')) cancelledCount++;
+
+            const currentTTR = isStopClock ? row._netTTR : row._grossTTR;
+            totalNetTTR += currentTTR;
+            if (currentTTR <= 4.0) inSLACount++;
+        });
+
+        const avgMTTR = totalTT > 0 ? (totalNetTTR / totalTT) : 0;
+        const slaPct = totalTT > 0 ? ((inSLACount / totalTT) * 100) : 0;
+
+        // Update nilai ke ID HTML asli jika ada
+        const elTotal = document.getElementById('kpiTotalTT') || document.getElementById('totalTT');
+        if (elTotal) elTotal.innerText = totalTT.toLocaleString('id-ID');
+
+        const elClosed = document.getElementById('kpiClosedTT') || document.getElementById('closedTT');
+        if (elClosed) elClosed.innerText = closedCount.toLocaleString('id-ID');
+
+        const elAvg = document.getElementById('kpiAvgMTTR') || document.getElementById('avgMTTR');
+        if (elAvg) elAvg.innerText = avgMTTR.toFixed(2) + ' Jam';
+
+        const elSLA = document.getElementById('kpiSLA') || document.getElementById('slaCompliance');
+        if (elSLA) elSLA.innerText = slaPct.toFixed(1) + '%';
+    }
+
+    // Listener Otomatis Mengikat Input File Asli Anda
+    document.addEventListener('DOMContentLoaded', () => {
+        const fileInputs = document.querySelectorAll('input[type="file"]');
+        fileInputs.forEach(input => {
+            input.addEventListener('change', function (e) {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = function (evt) {
+                    if (typeof XLSX !== 'undefined') {
+                        const data = new Uint8Array(evt.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                        const json = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+                        window.processDatasetOptimized(json);
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            });
+        });
+    });
+})();
+			
+        });
+		
     </script>
 </body>
 </html>
+
